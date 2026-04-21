@@ -635,13 +635,16 @@ function create_mesh(piece, crate_texture, x_offset, y_offset, z_offset, x_angle
         piece.boundingBox.min.z + z_offset
     );
 
-    if (use_textures) {
-        crate_texture.colorSpace = THREE.SRGBColorSpace;
+    const faceTexture = use_textures ? crate_texture : undefined;
+    if (faceTexture && faceTexture.colorSpace !== undefined) {
+        faceTexture.colorSpace = THREE.SRGBColorSpace;
     }
 
     const material = new THREE.MeshBasicMaterial({
         vertexColors: true,
-        map: use_textures ? crate_texture : undefined,
+        map: faceTexture,
+        transparent: !!faceTexture,
+        alphaTest: faceTexture ? 0.05 : 0,
         side: THREE.DoubleSide
     });
     const positionAttribute = piece.getAttribute('position');
@@ -683,54 +686,48 @@ function start_cube(target_pos_x, target_pos_z, target_pos_y, size) {
     const bottom = new THREE.PlaneGeometry(dx, dz).toNonIndexed();
 
     const faceTextures = getFaceTexturesForBox(size);
-    const back_mesh = create_mesh(back, faceTextures["back"], 0, 0, 0, 0, 0, 0);
-    const front_mesh = create_mesh(front, faceTextures["front"], 0, 0, -dz, 0, Math.PI, 0);
-    const left_mesh = create_mesh(left, faceTextures["left"], dx, 0, 0, 0, Math.PI / 2, 0);
-    const right_mesh = create_mesh(right, faceTextures["right"], 0, 0, 0, 0, Math.PI * 1.5, 0);
-    const bottom_mesh = create_mesh(bottom, faceTextures["bottom"], 0, 0, 0, Math.PI / 2, 0, 0);
-    const top_mesh = create_mesh(top, faceTextures["top"], 0, dy, 0, Math.PI * 1.5, 0, 0);
 
-    //const back_mesh = create_mesh(
-    //    back,
-    //    crate_textures["back"],
-    //    0, 0, 0,
-    //    0, 0, 0
-    //);
+    const back_mesh = create_mesh(
+       back,
+       faceTextures["back"],
+       0, 0, 0,
+       0, 0, 0
+    );
 
-    //const front_mesh = create_mesh(
-    //    front,
-    //    crate_textures["front"],
-    //    0, 0, -dz,
-    //    0, Math.PI, 0
-    //);
+    const front_mesh = create_mesh(
+       front,
+       faceTextures["front"],
+       0, 0, -dz,
+       0, Math.PI, 0
+    );
 
-    //const left_mesh = create_mesh(
-    //    left,
-    //    crate_textures["left"],
-    //    dx, 0, 0,
-    //    0, Math.PI / 2, 0
-    //);
+    const left_mesh = create_mesh(
+       left,
+       faceTextures["left"],
+       dx, 0, 0,
+       0, Math.PI / 2, 0
+    );
 
-    //const right_mesh = create_mesh(
-    //    right,
-    //    crate_textures["right"],
-    //    0, 0, 0,
-    //    0, Math.PI * 1.5, 0
-    //);
+    const right_mesh = create_mesh(
+       right,
+       faceTextures["right"],
+       0, 0, 0,
+       0, Math.PI * 1.5, 0
+    );
 
-    //const bottom_mesh = create_mesh(
-    //    bottom,
-    //    crate_textures["bottom"],
-    //    0, 0, 0,
-    //    Math.PI / 2, 0, 0
-    //);
+    const bottom_mesh = create_mesh(
+       bottom,
+       faceTextures["bottom"],
+       0, 0, 0,
+       Math.PI / 2, 0, 0
+    );
 
-    //const top_mesh = create_mesh(
-    //    top,
-    //    crate_textures["top"],
-    //    0, dy, 0,
-    //    Math.PI * 1.5, 0, 0
-    //);
+    const top_mesh = create_mesh(
+       top,
+       faceTextures["top"],
+       0, dy, 0,
+       Math.PI * 1.5, 0, 0
+    );
 
     let cube = new THREE.Group();
     cube.add(back_mesh);
