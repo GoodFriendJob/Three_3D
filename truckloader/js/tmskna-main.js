@@ -223,8 +223,16 @@ function packagingReadyForTargets(targets) {
     return true;
 }
 
+function isPalletBox(size) {
+    if (!size) return false;
+    const raw = size.packKind ?? size.PackKind ?? size.pack_kind ?? size.kind ?? size.type;
+    if (raw === undefined || raw === null) return false;
+    const s = String(raw).trim().toUpperCase();
+    return s === 'P' || s === 'PALLET' || s === 'PAL';
+}
+
 function getFaceTexturesForBox(size) {
-    const wantPallet = size.packKind === 'P';
+    const wantPallet = isPalletBox(size);
     const primary = wantPallet ? packagingFaceCache.pallet : packagingFaceCache.crate;
     if (primary && primary._ready) return primary;
     const fb = packagingFaceCache.crate;
@@ -685,7 +693,7 @@ function start_cube(target_pos_x, target_pos_z, target_pos_y, size) {
     const top = new THREE.PlaneGeometry(dx, dz).toNonIndexed();
     const bottom = new THREE.PlaneGeometry(dx, dz).toNonIndexed();
 
-    const faceTextures = getFaceTexturesForBox(size);
+    const faceTextures = getFaceTexturesForBox(size) || {};
 
     const back_mesh = create_mesh(
        back,
