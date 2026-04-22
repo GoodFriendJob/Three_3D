@@ -33,9 +33,12 @@
                 </script>
 
                     <script type="text/javascript">
-
-                        document.getElementById("customLoading").style.display = "block";
-
+                        (function () {
+                            var loader = document.getElementById("customLoading");
+                            if (loader) {
+                                loader.style.display = "block";
+                            }
+                        })();
                     </script>
 
 
@@ -95,8 +98,8 @@
                     <script type="text/javascript">
 
                     function showCustomLoading() {
-                        // Show the custom loading spinner
-                        document.getElementById('customLoading').style.display = 'block';
+                        var loader = document.getElementById('customLoading');
+                        if (loader) loader.style.display = 'block';
                     }
 
                     </script>
@@ -104,33 +107,26 @@
                 <script type="text/javascript">
 
                     function hideCustomLoading() {
-                        // Hide the custom loading spinner
-                        document.getElementById('customLoading').style.display = 'none';
+                        var loader = document.getElementById('customLoading');
+                        if (loader) loader.style.display = 'none';
                     }
 
                 </script>
                 
                 <script type="text/javascript">
 
-                    // Hook into the RadGrid's events
                     function initializeRadGrid() {
                         var grid = $find("<%= grdLoadConsolidation.ClientID %>");
+                        if (!grid) return;
 
-                        // Event to trigger when the grid starts a request (e.g., paging, sorting)
-                        grid.add_onRequestStart(function (sender, args) {
-                            showCustomLoading();
-                        });
-
-                        // Event to trigger when the grid finishes a request
-                        grid.add_onRequestEnd(function (sender, args) {
-                            hideCustomLoading();
-                        });
+                        var masterTable = grid.get_masterTableView ? grid.get_masterTableView() : null;
+                        if (masterTable && typeof masterTable.add_requestStart === "function" && typeof masterTable.add_requestEnd === "function") {
+                            masterTable.add_requestStart(function () { showCustomLoading(); });
+                            masterTable.add_requestEnd(function () { hideCustomLoading(); });
+                        }
                     }
 
-                    // Ensure the RadGrid client-side events are initialized when the page loads
-                    window.onload = function () {
-                        initializeRadGrid();
-                    };
+                    Sys.Application.add_load(initializeRadGrid);
 
                 </script>
                 
@@ -154,8 +150,8 @@
                 <script type="text/javascript">
 
 function showCustomLoading() {
-    // Show the custom loading spinner
-    document.getElementById('customLoading').style.display = 'block';
+    var loader = document.getElementById('customLoading');
+    if (loader) loader.style.display = 'block';
 }
 
                 </script>
@@ -163,33 +159,25 @@ function showCustomLoading() {
                 <script type="text/javascript">
 
 function hideCustomLoading() {
-    // Hide the custom loading spinner
-    document.getElementById('customLoading').style.display = 'none';
+    var loader = document.getElementById('customLoading');
+    if (loader) loader.style.display = 'none';
 }
 
                 </script>
                 
                 <script type="text/javascript">
 
-// Hook into the RadGrid's events
 function initializeRadGrid() {
     var grid = $find("<%= grdLoadConsolidation.ClientID %>");
-    
-    // Event to trigger when the grid starts a request (e.g., paging, sorting)
-    grid.add_onRequestStart(function(sender, args) {
-        showCustomLoading();
-    });
-
-    // Event to trigger when the grid finishes a request
-    grid.add_onRequestEnd(function(sender, args) {
-        hideCustomLoading();
-    });
+    if (!grid) return;
+    var masterTable = grid.get_masterTableView ? grid.get_masterTableView() : null;
+    if (masterTable && typeof masterTable.add_requestStart === "function" && typeof masterTable.add_requestEnd === "function") {
+        masterTable.add_requestStart(function() { showCustomLoading(); });
+        masterTable.add_requestEnd(function() { hideCustomLoading(); });
+    }
 }
 
-// Ensure the RadGrid client-side events are initialized when the page loads
-window.onload = function() {
-    initializeRadGrid();
-};
+Sys.Application.add_load(initializeRadGrid);
 
                 </script>
 
@@ -3307,11 +3295,50 @@ window.onload = function() {
                                 ]
                             }
                         ];
+                        function parseAllowedRegionIds(csvValue) {
+                            if (!csvValue) return {};
+                            var parts = csvValue.split(",");
+                            var allowed = {};
+                            for (var i = 0; i < parts.length; i++) {
+                                var id = $.trim(parts[i]);
+                                if (id) {
+                                    allowed[id] = true;
+                                }
+                            }
+                            return allowed;
+                        }
+
+                        function filterRegionTree(nodes, allowedIds) {
+                            if (!nodes || !nodes.length) return [];
+
+                            var filtered = [];
+
+                            for (var i = 0; i < nodes.length; i++) {
+                                var node = nodes[i];
+                                var nodeId = node && node.Id !== undefined && node.Id !== null ? String(node.Id) : "";
+                                var childNodes = (node && node.Areas) ? node.Areas : [];
+                                var filteredChildren = filterRegionTree(childNodes, allowedIds);
+                                var isNodeAllowed = !!allowedIds[nodeId];
+
+                                if (isNodeAllowed || filteredChildren.length > 0) {
+                                    var clonedNode = $.extend({}, node);
+                                    clonedNode.Areas = filteredChildren;
+                                    filtered.push(clonedNode);
+                                }
+                            }
+
+                            return filtered;
+                        }
+
+                        var allowedIdsCsv = document.getElementById('<%= hdnAllowedRegionIds.ClientID %>').value;
+                        var allowedRegionIds = parseAllowedRegionIds(allowedIdsCsv);
+                        var filteredDataSource = filterRegionTree(dataSource, allowedRegionIds);
+
                         $("#dropDownTree").kendoDropDownTree({
                             dataTextField: "Text",
                             dataValueField: "Id",
                             dataSource: {
-                                data: dataSource,
+                                data: filteredDataSource,
                                 schema: {
                                     model: {
                                         children: "Areas"
@@ -4445,6 +4472,7 @@ window.onload = function() {
                     <asp:HiddenField ID="hdnSelectedRegion" runat="server" />
                     <asp:HiddenField ID="hdnSelectedRegionText" runat="server" />
                     <asp:HiddenField ID="hdnSelectedRegionUrl" runat="server" />
+                    <asp:HiddenField ID="hdnAllowedRegionIds" runat="server" />
 
                     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
                         rel="stylesheet" />

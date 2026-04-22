@@ -378,6 +378,7 @@ Partial Class LoadConsolidation_Default
             Try
                 MenuImage()
                 If Not Page.IsPostBack Then
+                    hdnAllowedRegionIds.Value = GetAllowedRegionIdsCsv()
                     ' Req 9: Skip Selection Criteria overlay, load grid directly
                     Session.Remove("grdLoadConsolidationData")
                     Session.Remove("childDataCache")
@@ -392,6 +393,39 @@ Partial Class LoadConsolidation_Default
         End If
 
     End Sub
+
+    Private Function GetAllowedRegionIdsCsv() As String
+        Try
+            If obj Is Nothing Then
+                obj = TryCast(Session("COMMON_OBJ"), CCommon)
+            End If
+
+            If obj Is Nothing Then
+                Return String.Empty
+            End If
+
+            Using connection As New SqlConnection(ConfigurationManager.ConnectionStrings("ConStr").ConnectionString)
+                Using command As New SqlCommand("sp000001942514572", connection)
+                    command.CommandType = CommandType.StoredProcedure
+                    command.Parameters.AddWithValue("@P001", obj.gblUserCode)
+                    Dim outputParam As New SqlParameter("@P002", SqlDbType.VarChar, -1)
+                    outputParam.Direction = ParameterDirection.Output
+                    command.Parameters.Add(outputParam)
+
+                    connection.Open()
+                    command.ExecuteNonQuery()
+
+                    If outputParam.Value Is Nothing OrElse outputParam.Value Is DBNull.Value Then
+                        Return String.Empty
+                    End If
+
+                    Return Convert.ToString(outputParam.Value).Trim()
+                End Using
+            End Using
+        Catch ex As Exception
+            Return String.Empty
+        End Try
+    End Function
 
     'Protected Sub btnProcess_Click(ByVal sender As Object, ByVal e As System.EventArgs) Handles btnProcess.Click
     '    If (Session.IsNewSession) Then
