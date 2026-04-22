@@ -289,10 +289,22 @@ Partial Class LoadConsolidation_Default
         End If
         e.Result = str
     End Sub
+
+    Private Sub RedirectToMainLoginPage()
+        Const loginUrl As String = "~/Common/Login.aspx"
+
+        If ScriptManager.GetCurrent(Me) IsNot Nothing AndAlso ScriptManager.GetCurrent(Me).IsInAsyncPostBack Then
+            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "SessionTimeoutRedirect", "window.top.location='" & ResolveUrl(loginUrl) & "';", True)
+            Context.ApplicationInstance.CompleteRequest()
+        Else
+            Response.Redirect(loginUrl, False)
+            Context.ApplicationInstance.CompleteRequest()
+        End If
+    End Sub
     Protected Sub btnApprove_Click(ByVal sender As Object, ByVal e As System.EventArgs)
 
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
             Exit Sub
         End If
 
@@ -360,7 +372,7 @@ Partial Class LoadConsolidation_Default
 
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
         Else
 
             Try
@@ -425,7 +437,7 @@ Partial Class LoadConsolidation_Default
     Private Sub UnCheckedChk()
 
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
             Exit Sub
         End If
 
@@ -545,7 +557,7 @@ Partial Class LoadConsolidation_Default
 
     Protected Sub loadConsolidation_MainGrid()
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
             Exit Sub
         End If
 
@@ -628,7 +640,7 @@ Partial Class LoadConsolidation_Default
     Protected Sub grdLoadConsolidation_detailDataBind(ByVal source As Object, ByVal e As Telerik.Web.UI.GridDetailTableDataBindEventArgs)
 
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
             Exit Sub
         End If
 
@@ -832,7 +844,7 @@ Partial Class LoadConsolidation_Default
     Protected Sub grdLoadConsolidation_NeedDataSource(ByVal source As Object, ByVal e As Telerik.Web.UI.GridNeedDataSourceEventArgs) Handles grdLoadConsolidation.NeedDataSource
         Try
             If Session.IsNewSession Then
-                Response.Redirect("~/Common/Login.aspx")
+                RedirectToMainLoginPage()
                 Exit Sub
             End If
 
@@ -1029,7 +1041,7 @@ Partial Class LoadConsolidation_Default
     Protected Sub menuLoadConsolidation_ItemClick(ByVal sender As Object, ByVal e As Telerik.Web.UI.RadMenuEventArgs) Handles menuLoadConsolidation.ItemClick
 
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
             Exit Sub
         End If
 
@@ -1091,7 +1103,7 @@ Partial Class LoadConsolidation_Default
     Protected Sub grdLoadConsolidation_ItemCommand(ByVal source As Object, ByVal e As Telerik.Web.UI.GridCommandEventArgs) Handles grdLoadConsolidation.ItemCommand
 
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
             Exit Sub
         End If
 
@@ -1165,7 +1177,7 @@ Partial Class LoadConsolidation_Default
     Private Sub openTrailerFlash()
 
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
             Exit Sub
         End If
 
@@ -1318,7 +1330,7 @@ Partial Class LoadConsolidation_Default
     Private Sub getShipment()
 
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
             Exit Sub
         End If
 
@@ -1353,7 +1365,7 @@ Partial Class LoadConsolidation_Default
     Private Sub calcLoad()
 
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
             Exit Sub
         End If
 
@@ -1379,7 +1391,7 @@ Partial Class LoadConsolidation_Default
     Private Sub SetLoadInProcess()
 
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
             Exit Sub
         End If
 
@@ -1410,7 +1422,7 @@ Partial Class LoadConsolidation_Default
     Private Sub loadTempTable(ByVal shipmentID As String)
 
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
             Exit Sub
         End If
 
@@ -1444,7 +1456,7 @@ Partial Class LoadConsolidation_Default
     Protected Sub grdLoadConsolidation_DeleteCommand(ByVal source As Object, ByVal e As Telerik.Web.UI.GridCommandEventArgs) Handles grdLoadConsolidation.DeleteCommand
 
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
             Exit Sub
         End If
 
@@ -1482,7 +1494,7 @@ Partial Class LoadConsolidation_Default
     Protected Sub btnDummy_Click(ByVal sender As Object, ByVal e As System.EventArgs) Handles btnDummy.Click
 
         If (Session.IsNewSession) Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginPage()
             Exit Sub
         End If
 
