@@ -272,6 +272,9 @@ Partial Class LoadConsolidation_Default
     Public ReadOnly Property Origin_Destination() As String
         Get
             Try
+                If hdnSelectedRegion IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(hdnSelectedRegion.Value) Then
+                    Return hdnSelectedRegion.Value.Trim() + "$%?|*"
+                End If
                 Return Me.grdLoadConsolidation.MasterTableView.GetColumn("Origin").CurrentFilterValue + "$%?|*" + Me.grdLoadConsolidation.MasterTableView.GetColumn("Destination").CurrentFilterValue
             Catch ex As Exception
                 Return String.Empty
@@ -1524,6 +1527,26 @@ Partial Class LoadConsolidation_Default
 
     'Protected Sub grdSelectionCriteriaCostCenter_DeleteCommand(ByVal source As Object, ByVal e As Telerik.Web.UI.GridCommandEventArgs) Handles grdSelectionCriteriaCostCenter.DeleteCommand
     'End Sub
+
+    Protected Sub RadAjaxManager1_AjaxRequest(ByVal sender As Object, ByVal e As Telerik.Web.UI.AjaxRequestEventArgs)
+        If (Session.IsNewSession) Then
+            RedirectToMainLoginPage()
+            Exit Sub
+        End If
+
+        Try
+            If String.Equals(Convert.ToString(e.Argument), "RegionChanged", StringComparison.OrdinalIgnoreCase) Then
+                iCal = 0
+                Session.Remove("grdLoadConsolidationData")
+                Session.Remove("childDataCache")
+                grdLoadConsolidation.CurrentPageIndex = 0
+                loadConsolidation_MainGrid()
+                grdLoadConsolidation.Rebind()
+            End If
+        Catch ex As Exception
+            ScriptManager.RegisterStartupScript(Page, GetType(Page), "Error", "alert('An error occurred while refreshing region data.');", True)
+        End Try
+    End Sub
 
     Protected Sub btnDummy_Click(ByVal sender As Object, ByVal e As System.EventArgs) Handles btnDummy.Click
 

@@ -3353,7 +3353,10 @@ Sys.Application.add_load(initializeRadGrid);
                                 document.getElementById('<%= hdnSelectedRegion.ClientID %>').value = item.Id;
                                 document.getElementById('<%= hdnSelectedRegionText.ClientID %>').value = item.Text;
                                 document.getElementById('<%= hdnSelectedRegionUrl.ClientID %>').value = item.flagPath;
-
+                                var ajaxManager = $find("<%= RadAjaxManager1.ClientID %>");
+                                if (ajaxManager) {
+                                    ajaxManager.ajaxRequest("RegionChanged");
+                                }
                             },
                             valueTemplate: function (dataItem) {
                                 if (!dataItem) return "";
@@ -3366,6 +3369,13 @@ Sys.Application.add_load(initializeRadGrid);
                                     wrapper.removeClass("dropdowntree-placeholder");
                                 } else {
                                     wrapper.addClass("dropdowntree-placeholder");
+                                    document.getElementById('<%= hdnSelectedRegion.ClientID %>').value = "";
+                                    document.getElementById('<%= hdnSelectedRegionText.ClientID %>').value = "";
+                                    document.getElementById('<%= hdnSelectedRegionUrl.ClientID %>').value = "";
+                                    var ajaxManager = $find("<%= RadAjaxManager1.ClientID %>");
+                                    if (ajaxManager) {
+                                        ajaxManager.ajaxRequest("RegionChanged");
+                                    }
                                 }
                                 collapseChildGrids();
                             }
@@ -3580,7 +3590,7 @@ Sys.Application.add_load(initializeRadGrid);
                         CssClass="CenteredLoadingPanel">
                     </telerik:RadAjaxLoadingPanel>
 
-                    <telerik:radajaxmanager id="RadAjaxManager1" runat="server">
+                    <telerik:radajaxmanager id="RadAjaxManager1" runat="server" OnAjaxRequest="RadAjaxManager1_AjaxRequest">
                         <AjaxSettings>
 
                             <telerik:AjaxSetting AjaxControlID="grdLoadConsolidation">
@@ -3593,6 +3603,12 @@ Sys.Application.add_load(initializeRadGrid);
                                 <UpdatedControls>
                                     <telerik:AjaxUpdatedControl ControlID="grdLoadConsolidation"
                                         LoadingPanelID="RadAjaxLoadingPanel1" />
+                                </UpdatedControls>
+                            </telerik:AjaxSetting>
+
+                            <telerik:AjaxSetting AjaxControlID="RadAjaxManager1">
+                                <UpdatedControls>
+                                    <telerik:AjaxUpdatedControl ControlID="grdLoadConsolidation" LoadingPanelID="RadAjaxLoadingPanel2" />
                                 </UpdatedControls>
                             </telerik:AjaxSetting>
 
