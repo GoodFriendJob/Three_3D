@@ -54,6 +54,49 @@ let truck_length = truck_coords.x_max - truck_coords.x_min;
 let max_camera_distance = 2400; //2000;
 let min_camera_distance = 1400;
 
+/** Orbit target (truck area) — camera must stay on the “lot” side (+world X), not inside the dock/warehouse mesh. */
+function getOrbitTargetX() {
+    return -60 + object_placement_offset_x;
+}
+
+/**
+ * Minimum camera world X when inside the dock “corridor” (see below).
+ * Keeps the camera out of the warehouse mesh when looking through the bay opening.
+ */
+const CAMERA_LOT_SIDE_MARGIN_X = 240;
+
+/**
+ * Only apply the X clamp when |camera.z − target.z| is below this half-width (world units).
+ * Straight-through-the-door views use a narrow Z band; orbiting behind the trailer uses larger |ΔZ|,
+ * so those angles stay allowed.
+ */
+const DOCK_OPENING_Z_HALF_WIDTH = 300;
+
+/**
+ * Skip dock-only plane clamp when camera is this far toward −X from target (behind-truck orbit with small |Δz|).
+ * Higher = more angles allowed behind the trailer without snapping to the front.
+ */
+const DOCK_CLAMP_SKIP_IF_CAMERA_X_BELOW_TARGET = 90;
+
+/**
+ * Hard floor for world X so max zoom cannot park the camera far behind the warehouse (any Z).
+ * camera.x must stay >= target.x + this (negative value = allowed band toward −X from target).
+ */
+const CAMERA_MIN_X_RELATIVE_TO_TARGET = -1750;
+
+const _clampDelta = new THREE.Vector3();
+
+/** Root objects for debug logging (world AABB after load). */
+let warehouseRoot = null;
+let truckRoot = null;
+let sceneLayoutDebugLogged = false;
+
+/** Warehouse world AABB max.x (toward lot); set after models load — used for optional deep clamp. */
+let warehouseWorldMaxX = null;
+
+/** Last printed camera line (dedupe repeated OrbitControls `change` events). */
+let lastCameraDebugLine = '';
+
 let start_camera_angle_rate = max_camera_distance / 2119.;
 
 let trajectory_up = {
@@ -261,7 +304,7 @@ function dbgCrateOnce() {
     const p = packagingFaceCache.pallet;
     const tex = multitextures ? (p && p.top) || (c && c.top) : c && c.top;
     const img = tex && tex.image;
-    console.log('[packaging]', multitextures ? 'PNG faces' : 'gif', img && img.src, 'complete=' + !!(img && img.complete));
+    // console.log('[packaging]', multitextures ? 'PNG faces' : 'gif', img && img.src, 'complete=' + !!(img && img.complete));
 }
 
 function beginCubesAfterTextures(result) {
@@ -445,6 +488,8 @@ function init() {
     light.shadow.camera.right = d * 2;
     light.shadow.camera.top = d;
     light.shadow.camera.bottom = -d;
+    light.shadow.mapSize.width = 2048;
+    light.shadow.mapSize.height = 2048;
     //light.shadow.mapSize = new THREE.Vector2( 80000, 80000 );
     //light.shadow.camera.lookAt( new THREE.Vector3(-500,-200, 0) )
     scene.add(light);
@@ -500,7 +545,11 @@ function init() {
         object.position.z = 0 + object_placement_offset_z;
         object.rotation.set(0, Math.PI / 2, 0);
         //object.receiveShadow = true;
+        warehouseRoot = object;
         scene.add(object);
+        warehouseRoot.updateMatrixWorld(true);
+        const whBoxInit = new THREE.Box3().setFromObject(warehouseRoot);
+        warehouseWorldMaxX = whBoxInit.max.x;
 
         load_glb_file('skybox', function (gltf) {
             let object = gltf.scene;
@@ -538,6 +587,7 @@ function init() {
                 object.position.z = 0 + object_placement_offset_z;
                 object.rotation.set(0, Math.PI / 2, 0);
                 //object.receiveShadow = true;
+                truckRoot = object;
                 scene.add(object);
 
                 //animations.truck_door.play();
@@ -545,14 +595,15 @@ function init() {
                 render();
 
                 tryStartEmbeddedFromHiddenField();
+                queueDebugSceneLayoutLog();
 
             });
 
         });
     });
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.setSize( container.clientWidth || window.innerWidth, container.clientHeight || window.innerHeight);
     renderer.shadowMap.enabled = true;
     if (THREE.SRGBColorSpace !== undefined) {
@@ -567,13 +618,103 @@ function init() {
         //controls.minAzimuthAngle = -5 * Math.PI / 16; //3 * Math.PI / 4;
         controls.maxAzimuthAngle = Math.PI / 2; //21 * Math.PI / 16;
     }
-    controls.target.set(-60 + object_placement_offset_x, -100 + object_placement_offset_y, object_placement_offset_z);
+    controls.target.set(getOrbitTargetX(), -100 + object_placement_offset_y, object_placement_offset_z);
+    controls.enableDamping = false;
+    controls.rotateSpeed = 1.35;
+    controls.zoomSpeed = 1.45;
+    controls.panSpeed = 1.15;
     controls.update();
+
+    controls.addEventListener('change', function () {
+        if (!camera || !controls) return;
+        const p = camera.position;
+        const t = controls.target;
+        const dist = p.distanceTo(t);
+        const line = p.x.toFixed(2) + '|' + p.y.toFixed(2) + '|' + p.z.toFixed(2) + '|' + t.x.toFixed(2) + '|' + dist.toFixed(2);
+        if (line === lastCameraDebugLine) return;
+        lastCameraDebugLine = line;
+    });
 
     document.addEventListener('mousemove', onDocumentMouseMove);
 
     window.addEventListener('resize', onWindowResize);
 
+}
+
+/** One-time console dump after models load (defer one frame so world matrices are current). */
+function queueDebugSceneLayoutLog() {
+    requestAnimationFrame(function () {
+        debugLogSceneLayoutOnce();
+    });
+}
+
+function debugLogSceneLayoutOnce() {
+    if (sceneLayoutDebugLogged) return;
+    if (!warehouseRoot || !truckRoot) return;
+
+    warehouseRoot.updateMatrixWorld(true);
+    truckRoot.updateMatrixWorld(true);
+
+    const boxWh = new THREE.Box3().setFromObject(warehouseRoot);
+    const boxTruck = new THREE.Box3().setFromObject(truckRoot);
+    const minWh = boxWh.min;
+    const maxWh = boxWh.max;
+    const minTr = boxTruck.min;
+    const maxTr = boxTruck.max;
+    const sizeWh = boxWh.getSize(new THREE.Vector3());
+    const sizeTr = boxTruck.getSize(new THREE.Vector3());
+    const centerWh = boxWh.getCenter(new THREE.Vector3());
+    const centerTr = boxTruck.getCenter(new THREE.Vector3());
+
+    const orbitTx = getOrbitTargetX();
+    // debug logs removed to keep browser console clean
+
+    if (camera && controls) {
+        const p = camera.position;
+        const t = controls.target;
+    }
+
+    // console.log('[debug] Copy camera line when broken: [camera] pos: ... (from rotate/zoom logs)');
+    // console.log('[debug] ================================================================');
+
+    sceneLayoutDebugLogged = true;
+}
+
+function clampCameraToPlaneX(minXWorld) {
+    if (!camera || !controls) return;
+    const target = controls.target;
+    if (camera.position.x >= minXWorld) return;
+
+    _clampDelta.subVectors(camera.position, target);
+    const dx = _clampDelta.x;
+    if (Math.abs(dx) < 1e-5) {
+        camera.position.x = minXWorld;
+        return;
+    }
+
+    const s = (minXWorld - target.x) / dx;
+    camera.position.copy(target).addScaledVector(_clampDelta, s);
+}
+
+function enforceCameraFrontConstraint() {
+    if (!camera || !controls) return;
+
+    const target = controls.target;
+    const minDockX = target.x + CAMERA_LOT_SIDE_MARGIN_X;
+
+    if (camera.position.x < minDockX) {
+        const behindTruckSkipDock =
+            camera.position.x < target.x - DOCK_CLAMP_SKIP_IF_CAMERA_X_BELOW_TARGET;
+        if (!behindTruckSkipDock) {
+            const dzAbs = Math.abs(camera.position.z - target.z);
+            if (dzAbs < DOCK_OPENING_Z_HALF_WIDTH) {
+                clampCameraToPlaneX(minDockX);
+            }
+        }
+    }
+
+    const deepMinX = target.x + CAMERA_MIN_X_RELATIVE_TO_TARGET;
+    clampCameraToPlaneX(deepMinX);
 }
 
 function onWindowResize() {
@@ -587,6 +728,7 @@ function onWindowResize() {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
 
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.setSize(w, h);
 
 }
@@ -763,7 +905,7 @@ function start_cube(target_pos_x, target_pos_z, target_pos_y, size) {
 
     scene.add(cube);
     if (animations.cubes.items.length === 1) {
-        console.log('[cube0] target', target_pos_x.toFixed(0), target_pos_y.toFixed(0), target_pos_z.toFixed(0));
+        // console.log('[cube0] target', target_pos_x.toFixed(0), target_pos_y.toFixed(0), target_pos_z.toFixed(0));
     }
 }
 
@@ -804,7 +946,7 @@ function animate() {
                     item.active = false;
                 }
                 if (i === 0 && item.active && ++dbgCubeTick % 30 === 0) {
-                    console.log('[cube0]', cube.position.x.toFixed(0), cube.position.y.toFixed(0), cube.position.z.toFixed(0));
+                    // console.log('[cube0]', cube.position.x.toFixed(0), cube.position.y.toFixed(0), cube.position.z.toFixed(0));
                 }
             }
         }
@@ -825,7 +967,12 @@ function animate() {
 function render() {
 
     if (!renderer || !scene || !camera) return;
-    if (controls) controls.update();
+    if (controls) {
+        controls.update();
+        enforceCameraFrontConstraint();
+    }
     renderer.render(scene, camera);
 
 }
+
+
