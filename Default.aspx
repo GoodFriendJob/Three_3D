@@ -295,6 +295,20 @@ Sys.Application.add_load(initializeRadGrid);
                     var _trailerPageUrl = '<%= ResolveUrl("~/LoadConsolidation/TrailerAnimation.aspx") %>';
                     var _pendingTrailerRow = null;
 
+                    /** If the trailer iframe navigated to the login page (e.g. session timeout), leave the whole app to full login — not login inside the overlay. */
+                    function redirectTopIfTrailerIframeShowsLogin() {
+                        var iframe = document.getElementById("truckloaderIframe");
+                        if (!iframe || !iframe.contentWindow) return false;
+                        try {
+                            var href = iframe.contentWindow.location.href || "";
+                            if (href.toLowerCase().indexOf("login.aspx") !== -1) {
+                                window.top.location.replace(href);
+                                return true;
+                            }
+                        } catch (ex) { }
+                        return false;
+                    }
+
                     function clearTrailerRowMarks() {
                         document.querySelectorAll('.trailer-last-master, .trailer-marker-row, .trailer-selected-row').forEach(function (n) {
                             n.classList.remove('trailer-last-master', 'trailer-marker-row', 'trailer-selected-row');
@@ -387,6 +401,9 @@ Sys.Application.add_load(initializeRadGrid);
                         overlay.style.setProperty("margin", "0", "important");
 
                         // Set iframe src and display overlay
+                        iframe.onload = function () {
+                            redirectTopIfTrailerIframeShowsLogin();
+                        };
                         iframe.src = animationUrl;
                         overlay.style.display = "flex";
 
@@ -404,6 +421,10 @@ Sys.Application.add_load(initializeRadGrid);
                         if (e) {
                             e.preventDefault();
                             e.stopPropagation();
+                        }
+
+                        if (redirectTopIfTrailerIframeShowsLogin()) {
+                            return false;
                         }
 
                         // Hide the overlay and reset the iframe
@@ -530,6 +551,7 @@ Sys.Application.add_load(initializeRadGrid);
                     }
 
                     function OnClientRateModuleClose(sender, eventArgs) {
+                        closeTrailerOverlay();
                         document.getElementById('<%= btnDummy.ClientID %>').click();
                     }
                     function onLoadConsolidationRowExpanded(sender, args) {

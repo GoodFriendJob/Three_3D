@@ -636,15 +636,7 @@ Partial Class LoadConsolidation_Default
 
                         Select Case isCalculation
                             Case Is <> 1
-                                command.Parameters.Clear()
-                                command.CommandText = "sp000001812195728"
-                                command.CommandType = CommandType.StoredProcedure
-                                command.Parameters.AddWithValue("@P001", obj.gblUserCode)
-                                command.Parameters.AddWithValue("@P002", System.Web.HttpContext.Current.Session.SessionID)
-                                connection.Open()
-                                command.ExecuteNonQuery()
-                                connection.Close()
-
+                                ' sp000001812195728 intentionally not executed (disabled).
 
                                 objcmd.Parameters.Add(New SqlParameter("@P001", obj.gblUserCode))
                                 objcmd.Parameters.Add(New SqlParameter("@P002", obj.gblDefaultMeasure))

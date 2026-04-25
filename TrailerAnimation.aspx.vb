@@ -7,9 +7,28 @@ Imports System.Web.Script.Serialization
 Partial Class LoadConsolidation_TrailerAnimation
     Inherits System.Web.UI.Page
 
+    ''' <summary>
+    ''' When session is lost, redirect the top window (parent page), not only this iframe.
+    ''' </summary>
+    Private Sub RedirectToMainLoginEscapeIframe()
+        Dim url As String = ResolveUrl("~/Common/Login.aspx")
+        Dim jsLiteral As String = "'" & url.Replace("\", "\\").Replace("'", "\'") & "'"
+
+        Response.Clear()
+        Response.StatusCode = 200
+        Response.ContentType = "text/html; charset=utf-8"
+        Response.Cache.SetCacheability(HttpCacheability.NoCache)
+        Response.Write("<!DOCTYPE html><html><head><meta charset=""utf-8""/><title></title></head><body>" &
+            "<script type=""text/javascript"">" &
+            "try{window.top.location.replace(" & jsLiteral & ");}catch(e1){" &
+            "try{window.parent.location.replace(" & jsLiteral & ");}catch(e2){window.location.replace(" & jsLiteral & ");}}" &
+            "</script></body></html>")
+        Context.ApplicationInstance.CompleteRequest()
+    End Sub
+
     Protected Sub Page_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
         If Session.IsNewSession Then
-            Response.Redirect("~/Common/Login.aspx")
+            RedirectToMainLoginEscapeIframe()
             Exit Sub
         End If
 
